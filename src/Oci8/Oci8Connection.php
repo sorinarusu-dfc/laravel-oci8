@@ -240,36 +240,101 @@ class Oci8Connection extends Connection
         return $grammar;
     }
     
-    
     /**
      * Execute a PL/SQL Function and return its value.
      * Usage: DB::executeFunction('function_name(:binding_1,:binding_n)', [':binding_1' => 'hi', ':binding_n' => 'bye'], PDO::PARAM_LOB)
-     * 
+     *
      * @author Tylerian - jairo.eog@outlook.com
-     * 
+     *
      * @param $sql (mixed)
      * @param $bindings (kvp array)
      * @param $returnType (PDO::PARAM_*)
      * @return $returnType
      */
-     public function executeFunction($sql, array $bindings = [], $returnType = PDO::PARAM_STR)
+     public function executeFunction($sql, $bindings = [], $outs = [], $returnType = PDO::PARAM_STR)
     {
         $query = $this->getPdo()->prepare('begin :result := ' . $sql . '; end;');
-        
+
         foreach ($bindings as $key => &$value)
         {
-            if (!preg_match('/^:(.*)$/i', $key))
-            {
-                $key = ':' . $key;
-            }
-            
+            $key = ':'.$key;
             $query->bindParam($key, $value);
         }
-        
-        $query->bindParam(':result', $result, $returnType);
-        
-        $query->execute();
-        
+        foreach ($outs as $bindingName => &$bindingValue) {
+            $query->bindParam(':' . $bindingName, $bindingValue, PDO::PARAM_STR, 32767);
+        }
+
+        if ($returnType === PDO::PARAM_STMT) {
+            $cursor = null;
+            $query->bindParam(':result', $cursor, $returnType);
+            $result = $query->execute();
+            $statement = new Statement($cursor, $this->getPdo(), $this->getPdo()->getOptions());
+            $statement->execute();
+            $result = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+            $statement->closeCursor();
+        }elseif(count($outs) > 0){
+            $query->bindParam(':result', $result, $returnType);
+            $query->execute();
+            $result = array($outs,$result);
+        }else{
+            $query->bindParam(':result', $result, $returnType);
+            $query->execute();
+        }
+
+        return $result;
+
+
+
+    }
+
+    /**
+     * Execute a PL/SQL Procedure and return its result.
+     * Usage: DB::executeProcedure($procedureName, $bindings, $outs).
+     * $bindings and $out looks like:
+     *         $bindings = [
+     *                  'p_userid'  => $id
+     *         ];
+     *
+     * @param string $procedureName
+     * @param array $bindings = procedure parameters
+     * @param array $outs - variables that get setup from the procedure and returned
+     * @param mixed $returnType
+     * @return array
+     */
+    public function executeProcedure($procedureName, $bindings = [], $outs = [], $returnType = PDO::PARAM_STR)
+    {
+        $key_array = [];
+
+        foreach($bindings as $name => $value) {
+            $key_array[] = $name . ' => :' . $name;
+        }
+
+        foreach($outs as $name => $value) {
+            $key_array[] = $name . ' => :' . $name;
+        }
+
+        $keys = implode(', ', $key_array);
+
+        $command = sprintf('begin %s(%s); end;', $procedureName, $keys);
+
+        $stmt = $this->getPdo()->prepare($command);
+
+        foreach ($bindings as $bindingName => &$bindingValue) {
+            $stmt->bindParam(':' . $bindingName, $bindingValue);
+        }
+
+        foreach ($outs as $bindingName => &$bindingValue) {
+            $stmt->bindParam(':' . $bindingName, $bindingValue, PDO::PARAM_STR, 32767);
+        }
+
+        if(count($outs) > 0){
+            $stmt->execute();
+            $result = $outs;
+        }else{
+            $result = $stmt->execute();
+        }
+
         return $result;
     }
 
