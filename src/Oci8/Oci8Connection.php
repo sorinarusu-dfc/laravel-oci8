@@ -275,11 +275,11 @@ class Oci8Connection extends Connection
 
             $statement->closeCursor();
         }elseif(count($outs) > 0){
-            $query->bindParam(':result', $result, $returnType);
+            $query->bindParam(':result', $result, PDO::PARAM_STR, 32767);
             $query->execute();
             $result = array($outs,$result);
         }else{
-            $query->bindParam(':result', $result, $returnType);
+            $query->bindParam(':result', $result, PDO::PARAM_STR, 32767);
             $query->execute();
         }
 
