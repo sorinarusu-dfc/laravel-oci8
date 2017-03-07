@@ -14,6 +14,7 @@ use Yajra\Oci8\Schema\Grammars\OracleGrammar as SchemaGrammar;
 use Yajra\Oci8\Schema\OracleBuilder as SchemaBuilder;
 use Yajra\Oci8\Schema\Sequence;
 use Yajra\Oci8\Schema\Trigger;
+use Yajra\Pdo\Oci8\Statement;
 
 class Oci8Connection extends Connection
 {
@@ -274,11 +275,11 @@ class Oci8Connection extends Connection
 
             $statement->closeCursor();
         }elseif(count($outs) > 0){
-            $query->bindParam(':result', $result, $returnType);
+            $query->bindParam(':result', $result, PDO::PARAM_STR, 32767);
             $query->execute();
             $result = array($outs,$result);
         }else{
-            $query->bindParam(':result', $result, $returnType);
+            $query->bindParam(':result', $result, PDO::PARAM_STR, 32767);
             $query->execute();
         }
 
