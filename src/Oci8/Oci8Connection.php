@@ -322,7 +322,11 @@ class Oci8Connection extends Connection
         $stmt = $this->getPdo()->prepare($command);
 
         foreach ($bindings as $bindingName => &$bindingValue) {
-            $stmt->bindParam(':' . $bindingName, $bindingValue);
+           if(is_array($bindingValue)){
+                $stmt->bindParam(':' . $bindingName, $bindingValue, PDO::PARAM_INT, count($bindingValue));
+            }else {
+                $stmt->bindParam(':' . $bindingName, $bindingValue);
+            }
         }
 
         foreach ($outs as $bindingName => &$bindingValue) {
